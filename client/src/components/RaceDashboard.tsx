@@ -7,9 +7,23 @@ import { MultiSelectControl } from './controls/MultiSelectControl';
 import { QualiChart } from './charts/QualiChart';
 import { RacePaceChart } from './charts/RacePaceChart';
 import { LapProgressionChart } from './charts/LapProgressionChart';
+import { TelemetryOverlay } from './charts/TelemetryOverlay';
 import { fetchDrivers } from '../services/api';
 
 const YEARS = [2025, 2024, 2023, 2022, 2021, 2020];
+const getRandomColor = () => {
+    const hslToHex = (h: number, s: number, l: number) => {
+        l /= 100;
+        const a = s * Math.min(l, 1 - l) / 100;
+        const f = (n: number) => {
+            const k = (n + h / 30) % 12;
+            const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+            return Math.round(255 * color).toString(16).padStart(2, '0');
+        };
+        return `#${f(0)}${f(8)}${f(4)}`;
+    };
+    return hslToHex(Math.floor(Math.random() * 360), 80, 60);
+};
 
 export const RaceDashboard = () => {
     const [selectedYear, setSelectedYear] = useState(2025);
@@ -22,6 +36,8 @@ export const RaceDashboard = () => {
     const [availableDrivers, setAvailableDrivers] = useState<string[]>([]);
     const [selectedDrivers, setSelectedDrivers] = useState<string[]>([]);
     const [driversLoading, setDriversLoading] = useState(false);
+
+    const [comparisonLaps, setComparisonLaps] = useState<{ driver: string; lapNumber: number; color: string }[]>([]);
 
     const schedule = useRaceSchedule(selectedYear);
     const { data, loading, error, domain, loadData } = useRaceData();
@@ -37,8 +53,10 @@ export const RaceDashboard = () => {
     const currentEvent = useMemo(() => 
         schedule.find(e => e.RoundNumber === selectedEventRound), 
     [schedule, selectedEventRound]);
+
     useEffect(() => {
         setViewMode('distribution');
+        setComparisonLaps([]);
     }, [selectedSession]);
 
     useEffect(() => {
@@ -62,7 +80,14 @@ export const RaceDashboard = () => {
     const handleAnalyze = () => {
         if (currentEvent) {
             loadData(selectedYear, currentEvent.EventName, selectedSession, viewMode, selectedDrivers);
+            setComparisonLaps([]);
         }
+    };
+    const handlePointClick = (driver: string, lap: number) => {
+        setComparisonLaps(prev => {
+            if (prev.some(p => p.driver === driver && p.lapNumber === lap)) return prev;
+            return [...prev, { driver, lapNumber: lap, color: getRandomColor() }];
+        });
     };
 
     const isQuali = selectedSession === 'Q' || selectedSession === 'SS';
@@ -92,33 +117,29 @@ export const RaceDashboard = () => {
                         options={currentEvent?.Sessions.map(s => ({ label: s.name, value: s.value })) || []}
                         disabled={!currentEvent}
                     />
-                    
-                    {!isQuali && (
-                        <div className="bg-neutral-800 p-1 rounded-2xl flex h-[50px] border border-neutral-700">
-                            <button 
-                                onClick={() => setViewMode('distribution')}
-                                className={`flex-1 rounded-xl text-xs font-bold transition-all ${viewMode === 'distribution' ? 'bg-neutral-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
-                            >
-                                Distribution
-                            </button>
-                            <button 
-                                onClick={() => setViewMode('progression')}
-                                className={`flex-1 rounded-xl text-xs font-bold transition-all ${viewMode === 'progression' ? 'bg-neutral-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
-                            >
-                                Progression
-                            </button>
-                        </div>
-                    )}
+                    <div className="bg-neutral-800 p-1 rounded-2xl flex h-[50px] border border-neutral-700">
+                        <button 
+                            onClick={() => setViewMode('distribution')}
+                            className={`flex-1 rounded-xl text-xs font-bold transition-all ${viewMode === 'distribution' ? 'bg-neutral-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
+                        >
+                            Distribution
+                        </button>
+                        <button 
+                            onClick={() => setViewMode('progression')}
+                            className={`flex-1 rounded-xl text-xs font-bold transition-all ${viewMode === 'progression' ? 'bg-neutral-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
+                        >
+                            Progression
+                        </button>
+                    </div>
                 </div>
 
-                {viewMode === 'progression' && !isQuali && (
+                {viewMode === 'progression' && (
                     <div className="flex flex-col gap-4 animate-fade-in-down border-t border-white/5 pt-6">
                         <div className="w-full">
                             {driversLoading ? (
                                 <div className="text-sm text-neutral-500 italic p-2">Fetching driver list...</div>
                             ) : (
                                 <MultiSelectControl 
-                                    label="Select Drivers to Compare"
                                     options={availableDrivers}
                                     selected={selectedDrivers}
                                     onChange={setSelectedDrivers}
@@ -154,6 +175,7 @@ export const RaceDashboard = () => {
                         <p className="text-red-500 font-medium">
                             {isQuali ? 'Qualifying Pace' : viewMode === 'distribution' ? 'Race Pace Distribution' : 'Lap Time Progression'}
                         </p>
+                        {viewMode === 'progression' && <p className="text-neutral-500 text-xs mt-1">Click points to compare laps</p>}
                      </div>
                 </div>
 
@@ -162,14 +184,29 @@ export const RaceDashboard = () => {
 
                 <div className="w-full h-full pt-24 pb-4 px-4 md:px-8">
                     {!loading && data.length > 0 && (
-                        isQuali 
-                        ? <QualiChart data={data} /> 
-                        : viewMode === 'distribution' 
-                            ? <RacePaceChart data={data} domain={domain} />
-                            : <LapProgressionChart data={data} selectedDrivers={selectedDrivers} showOutliers={showOutliers} />
+                        viewMode === 'progression' 
+                            ? <LapProgressionChart 
+                                data={data} 
+                                selectedDrivers={selectedDrivers} 
+                                showOutliers={showOutliers}
+                                onPointClick={handlePointClick}
+                              />
+                            : isQuali 
+                                ? <QualiChart data={data} /> 
+                                : <RacePaceChart data={data} domain={domain} />
                     )}
                 </div>
             </div>
+
+            {comparisonLaps.length > 0 && (
+                <TelemetryOverlay 
+                    year={selectedYear} 
+                    gp={currentEvent?.EventName || ''} 
+                    session={selectedSession}
+                    laps={comparisonLaps}
+                    onClose={() => setComparisonLaps([])}
+                />
+            )}
         </div>
     );
 };

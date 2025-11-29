@@ -1,7 +1,8 @@
 from fastapi import FastAPI, Query
 from typing import List, Optional
+from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from app.f1_service import get_session_data, get_year_schedule, get_session_drivers
+from app.f1_service import get_session_data, get_year_schedule, get_session_drivers, get_multi_lap_telemetry
 from app.cache import get_cached_data, set_cached_data
 import os
 
@@ -14,6 +15,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+class CompareRequest(BaseModel):
+    year: int
+    gp: str
+    session: str
+    laps: List[dict]
 
 @app.get("/")
 def read_root(): return {"status": "F1 Analytics API is running"}
@@ -52,6 +59,22 @@ def get_race_data(
     
     try:
         data = get_session_data(year, gp, session, drivers, mode)
+    except Exception as e:
+        return {"error": str(e)}
+    
+    set_cached_data(cache_key, data)
+    return {"source": "live", "data": data}
+
+@app.post("/api/telemetry/compare")
+def compare_laps(req: CompareRequest):
+    req_str = f"{req.year}_{req.gp}_{req.session}_{str(req.laps)}"
+    cache_key = f"compare_{hash(req_str)}"
+    
+    cached = get_cached_data(cache_key)
+    if cached: return {"source": "redis", "data": cached}
+    
+    try:
+        data = get_multi_lap_telemetry(req.year, req.gp, req.session, req.laps)
     except Exception as e:
         return {"error": str(e)}
     

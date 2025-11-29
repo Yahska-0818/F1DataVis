@@ -21,3 +21,10 @@ export const fetchRaceData = async (year: number, eventName: string, session: st
     const res = await axios.get(url);
     return res.data.data;
 };
+
+export const fetchCompareData = async (year: number, gp: string, session: string, laps: { driver: string; lapNumber: number }[]) => {
+    const res = await axios.post(`${API_BASE_URL}/api/telemetry/compare`, {
+        year, gp, session, laps
+    });
+    return res.data.data;
+};

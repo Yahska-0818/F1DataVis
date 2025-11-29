@@ -1,10 +1,12 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
+import { formatTime } from '../../utils';
 
 interface Props { 
     data: any[]; 
     selectedDrivers: string[];
     showOutliers: boolean;
+    onPointClick: (driver: string, lap: number) => void;
 }
 
 const DRIVER_COLORS = [
@@ -12,7 +14,7 @@ const DRIVER_COLORS = [
     '#EC4899', '#6366F1', '#14B8A6', '#F97316', '#06B6D4'
 ];
 
-export const LapProgressionChart: React.FC<Props> = ({ data, selectedDrivers, showOutliers }) => {
+export const LapProgressionChart: React.FC<Props> = ({ data, selectedDrivers, showOutliers, onPointClick }) => {
     if (!selectedDrivers || selectedDrivers.length === 0) {
         return <div className="flex items-center justify-center h-full text-neutral-500">Select drivers to view progression.</div>;
     }
@@ -32,9 +34,7 @@ export const LapProgressionChart: React.FC<Props> = ({ data, selectedDrivers, sh
 
     filteredData.forEach(d => {
         const lap = Number(d.LapNumber);
-        if (!chartDataMap.has(lap)) {
-            chartDataMap.set(lap, { lap });
-        }
+        if (!chartDataMap.has(lap)) chartDataMap.set(lap, { lap });
         const entry = chartDataMap.get(lap);
         
         let time = 0;
@@ -85,15 +85,15 @@ export const LapProgressionChart: React.FC<Props> = ({ data, selectedDrivers, sh
                     domain={yDomain as any} 
                     stroke="#9ca3af"
                     tick={{ fill: '#9ca3af', fontSize: 11 }} 
-                    width={50}
-                    tickFormatter={(val) => val.toFixed(1)}
+                    width={60} 
+                    tickFormatter={(val) => formatTime(val)} 
                     axisLine={false}
                     tickLine={false}
                 />
                 <Tooltip 
                     contentStyle={{ backgroundColor: 'rgba(23, 23, 23, 0.95)', backdropFilter: 'blur(8px)', borderColor: '#333', color: '#fff', borderRadius: '12px' }}
                     labelFormatter={(label) => `Lap ${label}`}
-                    formatter={(value: number) => [`${value.toFixed(3)}s`]}
+                    formatter={(value: number) => [formatTime(value)]} 
                 />
                 <Legend verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: '20px' }}/>
                 {selectedDrivers.map((driver, index) => (
@@ -104,7 +104,15 @@ export const LapProgressionChart: React.FC<Props> = ({ data, selectedDrivers, sh
                         stroke={DRIVER_COLORS[index % DRIVER_COLORS.length]}
                         strokeWidth={2}
                         dot={{ r: 2 }}
-                        activeDot={{ r: 5 }}
+                        activeDot={{ 
+                            r: 6, 
+                            onClick: (_, payload) => {
+                                if (payload && payload.payload) {
+                                    onPointClick(driver, payload.payload.lap);
+                                }
+                            },
+                            style: { cursor: 'pointer' } 
+                        }}
                         connectNulls={true} 
                     />
                 ))}

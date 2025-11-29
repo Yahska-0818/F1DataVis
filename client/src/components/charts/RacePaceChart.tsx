@@ -1,5 +1,6 @@
 import React from 'react';
 import { ComposedChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, Scatter, ErrorBar } from 'recharts';
+import { formatTime } from '../../utils';
 
 interface Props { data: any[]; domain: [number, number] | ['auto', 'auto']; }
 
@@ -14,7 +15,17 @@ export const RacePaceChart: React.FC<Props> = ({ data, domain }) => (
         >
             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#333" opacity={0.4} />
             <YAxis type="category" dataKey="name" stroke="#9ca3af" tick={{ fill: '#9ca3af', fontSize: 12, fontWeight: 600 }} width={60} interval={0} axisLine={false} tickLine={false} />
-            <XAxis type="number" domain={domain} stroke="#525252" tick={{ fill: '#737373', fontSize: 11 }} tickFormatter={(val) => `${val.toFixed(1)}s`} allowDataOverflow={true} axisLine={{ stroke: '#404040' }} tickLine={false} />
+            
+            <XAxis 
+                type="number" 
+                domain={domain} 
+                stroke="#525252" 
+                tick={{ fill: '#737373', fontSize: 11 }} 
+                tickFormatter={(val) => formatTime(val)}
+                allowDataOverflow={true} 
+                axisLine={{ stroke: '#404040' }} 
+                tickLine={false} 
+            />
             
             <Tooltip 
                 cursor={{fill: '#ffffff', opacity: 0.05}}
@@ -25,11 +36,11 @@ export const RacePaceChart: React.FC<Props> = ({ data, domain }) => (
                     if (name === 'Median') {
                         return [
                             <div key="tooltip" className="text-sm space-y-1">
-                                <div className="flex justify-between gap-4"><span className="text-neutral-400">Min:</span> <span className="font-mono">{min.toFixed(3)}s</span></div>
-                                <div className="flex justify-between gap-4"><span className="text-neutral-400">Q1:</span> <span className="font-mono">{q1.toFixed(3)}s</span></div>
-                                <div className="flex justify-between gap-4 font-bold text-white"><span className="text-red-400">Median:</span> <span className="font-mono">{median.toFixed(3)}s</span></div>
-                                <div className="flex justify-between gap-4"><span className="text-neutral-400">Q3:</span> <span className="font-mono">{q3.toFixed(3)}s</span></div>
-                                <div className="flex justify-between gap-4"><span className="text-neutral-400">Max:</span> <span className="font-mono">{max.toFixed(3)}s</span></div>
+                                <div className="flex justify-between gap-4 text-white"><span className="text-red-400">Min:</span> <span className="font-mono">{formatTime(min)}</span></div>
+                                <div className="flex justify-between gap-4 text-white"><span className="text-red-400">Q1:</span> <span className="font-mono">{formatTime(q1)}</span></div>
+                                <div className="flex justify-between gap-4 font-bold text-white"><span className="text-red-400">Median:</span> <span className="font-mono">{formatTime(median)}</span></div>
+                                <div className="flex justify-between gap-4 text-white"><span className="text-red-400">Q3:</span> <span className="font-mono">{formatTime(q3)}</span></div>
+                                <div className="flex justify-between gap-4 text-white"><span className="text-red-400">Max:</span> <span className="font-mono">{formatTime(max)}</span></div>
                             </div>
                         ];
                     }
