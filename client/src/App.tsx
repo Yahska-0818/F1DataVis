@@ -1,4 +1,4 @@
-import { RaceChart } from './components/RaceChart';
+import { RaceChart } from './components/RaceDashboard';
 
 function App() {
   return (
