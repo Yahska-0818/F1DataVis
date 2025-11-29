@@ -1,8 +1,17 @@
 from fastapi import FastAPI
 from app.f1_service import get_session_data
+from fastapi.middleware.cors import CORSMiddleware
 from app.cache import get_cached_data, set_cached_data
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def read_root():
