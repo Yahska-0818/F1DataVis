@@ -7,7 +7,17 @@ export const fetchSchedule = async (year: number) => {
     return res.data.data;
 };
 
-export const fetchRaceData = async (year: number, eventName: string, session: string) => {
-    const res = await axios.get(`${API_BASE_URL}/api/race/${year}/${eventName}/${session}`);
+export const fetchDrivers = async (year: number, eventName: string, session: string) => {
+    const res = await axios.get(`${API_BASE_URL}/api/drivers/${year}/${eventName}/${session}`);
+    return res.data.data;
+};
+
+export const fetchRaceData = async (year: number, eventName: string, session: string, mode: string, drivers: string[] = []) => {
+    let url = `${API_BASE_URL}/api/race/${year}/${eventName}/${session}?mode=${mode}`;
+    if (drivers.length > 0) {
+        const queryParams = drivers.map(d => `drivers=${d}`).join('&');
+        url += `&${queryParams}`;
+    }
+    const res = await axios.get(url);
     return res.data.data;
 };

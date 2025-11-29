@@ -13,7 +13,7 @@ export const useRaceSchedule = (year: number) => {
                 const data = await fetchSchedule(year);
                 setSchedule(data);
             } catch (err) {
-                console.error("Failed to load schedule", err);
+                console.error(err);
             }
         };
         load();
