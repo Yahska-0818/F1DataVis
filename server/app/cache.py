@@ -1,14 +1,22 @@
 import redis
 import json
-import pandas as pd
+import os
 
-r = redis.Redis(host='localhost', port=6379, db=0)
+redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+
+r = redis.from_url(redis_url)
 
 def get_cached_data(key: str):
-    data = r.get(key)
-    if data:
-        return json.loads(data)
+    try:
+        data = r.get(key)
+        if data:
+            return json.loads(data)
+    except Exception:
+        pass
     return None
 
 def set_cached_data(key: str, data: dict, expire: int = 3600):
-    r.setex(key, expire, json.dumps(data))
+    try:
+        r.setex(key, expire, json.dumps(data))
+    except Exception:
+        pass
