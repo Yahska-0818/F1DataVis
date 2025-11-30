@@ -4,4 +4,6 @@ fastf1
 redis
 pandas
 numpy
+scipy
 python-multipart
+requests
