@@ -26,17 +26,18 @@ export const RacePaceChart: React.FC<Props> = ({ data, domain }) => (
                     if (name === 'Median') {
                         return [
                             <div key="tooltip" className="text-sm space-y-1">
-                                <div className="flex justify-between gap-4"><span className="text-neutral-400">Min:</span> <span className="font-mono">{formatTime(min)}</span></div>
-                                <div className="flex justify-between gap-4"><span className="text-neutral-400">Q1:</span> <span className="font-mono">{formatTime(q1)}</span></div>
+                                <div className="flex justify-between gap-4 text-white"><span className="text-red-400">Min:</span> <span className="font-mono">{formatTime(min)}</span></div>
+                                <div className="flex justify-between gap-4 text-white"><span className="text-red-400">Q1:</span> <span className="font-mono">{formatTime(q1)}</span></div>
                                 <div className="flex justify-between gap-4 font-bold text-white"><span className="text-red-400">Median:</span> <span className="font-mono">{formatTime(median)}</span></div>
-                                <div className="flex justify-between gap-4"><span className="text-neutral-400">Q3:</span> <span className="font-mono">{formatTime(q3)}</span></div>
-                                <div className="flex justify-between gap-4"><span className="text-neutral-400">Max:</span> <span className="font-mono">{formatTime(max)}</span></div>
+                                <div className="flex justify-between gap-4 text-white"><span className="text-red-400">Q3:</span> <span className="font-mono">{formatTime(q3)}</span></div>
+                                <div className="flex justify-between gap-4 text-white"><span className="text-red-400">Max:</span> <span className="font-mono">{formatTime(max)}</span></div>
                             </div>
                         ];
                     }
                     return [];
                 }}
             />
+            
             <Legend verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: '20px', paddingRight: '20px' }}
                 {...({
                     payload: [

@@ -190,7 +190,7 @@ export const RaceDashboard = () => {
                                 selectedDrivers={selectedDrivers} 
                                 showOutliers={showOutliers}
                                 onPointClick={handlePointClick}
-                              />
+                            />
                             : isQuali 
                                 ? <QualiChart data={data} /> 
                                 : <RacePaceChart data={data} domain={domain} />

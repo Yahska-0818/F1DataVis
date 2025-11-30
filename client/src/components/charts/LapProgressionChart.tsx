@@ -10,9 +10,28 @@ interface Props {
 }
 
 const DRIVER_COLORS = [
-    '#EF4444', '#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', 
-    '#EC4899', '#6366F1', '#14B8A6', '#F97316', '#06B6D4'
+  '#EF4444', // Red
+  '#3B82F6', // Blue
+  '#10B981', // Emerald
+  '#F59E0B', // Amber
+  '#8B5CF6', // Violet
+  '#EC4899', // Pink
+  '#6366F1', // Indigo
+  '#14B8A6', // Teal
+  '#F97316', // Orange
+  '#06B6D4', // Cyan
+  '#84CC16', // Lime
+  '#9333EA', // Deep Purple
+  '#22C55E', // Bright Green
+  '#E11D48', // Deep Rose
+  '#0EA5E9', // Sky Blue
+  '#D97706', // Brownish Amber
+  '#059669', // Dark Mint
+  '#F43F5E', // Carmine Pink
+  '#DC2626', // Deep Red
+  '#A855F7'  // Medium Purple
 ];
+
 
 export const LapProgressionChart: React.FC<Props> = ({ data, selectedDrivers, showOutliers, onPointClick }) => {
     if (!selectedDrivers || selectedDrivers.length === 0) {
@@ -34,9 +53,7 @@ export const LapProgressionChart: React.FC<Props> = ({ data, selectedDrivers, sh
 
     filteredData.forEach(d => {
         const lap = Number(d.LapNumber);
-        if (!chartDataMap.has(lap)) {
-            chartDataMap.set(lap, { lap });
-        }
+        if (!chartDataMap.has(lap)) chartDataMap.set(lap, { lap });
         const entry = chartDataMap.get(lap);
         
         let time = 0;
@@ -106,18 +123,25 @@ export const LapProgressionChart: React.FC<Props> = ({ data, selectedDrivers, sh
                         stroke={DRIVER_COLORS[index % DRIVER_COLORS.length]}
                         strokeWidth={2}
                         dot={{ r: 2 }}
-                        activeDot={{ 
-                            r: 6, 
-                            onClick: (props: any) => {
-                                if (props && props.payload) {
-                                    onPointClick(driver, props.payload.lap);
+                        activeDot={(props: any) => {
+                        const { cx, cy, payload } = props;
+                        return (
+                            <circle
+                            cx={cx}
+                            cy={cy}
+                            r={2}
+                            onClick={() => {
+                                if (payload && payload.lap != null) {
+                                onPointClick(driver, payload.lap);
                                 }
-                            },
-                            style: { cursor: 'pointer' } 
+                            }}
+                            style={{ cursor: 'pointer' }}
+                            />
+                        );
                         }}
                         connectNulls={true} 
                     />
-                ))}
+                    ))}
             </LineChart>
         </ResponsiveContainer>
     );
