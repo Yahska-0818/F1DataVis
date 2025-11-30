@@ -34,7 +34,9 @@ export const LapProgressionChart: React.FC<Props> = ({ data, selectedDrivers, sh
 
     filteredData.forEach(d => {
         const lap = Number(d.LapNumber);
-        if (!chartDataMap.has(lap)) chartDataMap.set(lap, { lap });
+        if (!chartDataMap.has(lap)) {
+            chartDataMap.set(lap, { lap });
+        }
         const entry = chartDataMap.get(lap);
         
         let time = 0;
@@ -106,9 +108,9 @@ export const LapProgressionChart: React.FC<Props> = ({ data, selectedDrivers, sh
                         dot={{ r: 2 }}
                         activeDot={{ 
                             r: 6, 
-                            onClick: (_, payload) => {
-                                if (payload && payload.payload) {
-                                    onPointClick(driver, payload.payload.lap);
+                            onClick: (props: any) => {
+                                if (props && props.payload) {
+                                    onPointClick(driver, props.payload.lap);
                                 }
                             },
                             style: { cursor: 'pointer' } 

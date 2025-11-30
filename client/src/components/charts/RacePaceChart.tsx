@@ -15,45 +15,36 @@ export const RacePaceChart: React.FC<Props> = ({ data, domain }) => (
         >
             <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#333" opacity={0.4} />
             <YAxis type="category" dataKey="name" stroke="#9ca3af" tick={{ fill: '#9ca3af', fontSize: 12, fontWeight: 600 }} width={60} interval={0} axisLine={false} tickLine={false} />
-            
-            <XAxis 
-                type="number" 
-                domain={domain} 
-                stroke="#525252" 
-                tick={{ fill: '#737373', fontSize: 11 }} 
-                tickFormatter={(val) => formatTime(val)}
-                allowDataOverflow={true} 
-                axisLine={{ stroke: '#404040' }} 
-                tickLine={false} 
-            />
+            <XAxis type="number" domain={domain} stroke="#525252" tick={{ fill: '#737373', fontSize: 11 }} tickFormatter={(val) => `${val.toFixed(1)}s`} allowDataOverflow={true} axisLine={{ stroke: '#404040' }} tickLine={false} />
             
             <Tooltip 
                 cursor={{fill: '#ffffff', opacity: 0.05}}
                 contentStyle={{ backgroundColor: 'rgba(23, 23, 23, 0.95)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', color: '#fff', padding: '12px' }}
                 separator="" 
-                formatter={(value: any, name: string, props: any) => {
+                formatter={(_: any, name: string, props: any) => {
                     const { min, q1, median, q3, max } = props.payload;
                     if (name === 'Median') {
                         return [
                             <div key="tooltip" className="text-sm space-y-1">
-                                <div className="flex justify-between gap-4 text-white"><span className="text-red-400">Min:</span> <span className="font-mono">{formatTime(min)}</span></div>
-                                <div className="flex justify-between gap-4 text-white"><span className="text-red-400">Q1:</span> <span className="font-mono">{formatTime(q1)}</span></div>
+                                <div className="flex justify-between gap-4"><span className="text-neutral-400">Min:</span> <span className="font-mono">{formatTime(min)}</span></div>
+                                <div className="flex justify-between gap-4"><span className="text-neutral-400">Q1:</span> <span className="font-mono">{formatTime(q1)}</span></div>
                                 <div className="flex justify-between gap-4 font-bold text-white"><span className="text-red-400">Median:</span> <span className="font-mono">{formatTime(median)}</span></div>
-                                <div className="flex justify-between gap-4 text-white"><span className="text-red-400">Q3:</span> <span className="font-mono">{formatTime(q3)}</span></div>
-                                <div className="flex justify-between gap-4 text-white"><span className="text-red-400">Max:</span> <span className="font-mono">{formatTime(max)}</span></div>
+                                <div className="flex justify-between gap-4"><span className="text-neutral-400">Q3:</span> <span className="font-mono">{formatTime(q3)}</span></div>
+                                <div className="flex justify-between gap-4"><span className="text-neutral-400">Max:</span> <span className="font-mono">{formatTime(max)}</span></div>
                             </div>
                         ];
                     }
                     return [];
                 }}
             />
-            
             <Legend verticalAlign="top" align="right" wrapperStyle={{ paddingBottom: '20px', paddingRight: '20px' }}
-                payload={[
-                    { value: 'IQR (Consistency)', type: 'rect', color: '#3b82f6' },
-                    { value: 'Median Pace', type: 'circle', color: '#ef4444' },
-                    { value: 'Range (Min/Max)', type: 'line', color: '#6b7280' }
-                ]}
+                {...({
+                    payload: [
+                        { value: 'IQR (Consistency)', type: 'rect', color: '#3b82f6' },
+                        { value: 'Median Pace', type: 'circle', color: '#ef4444' },
+                        { value: 'Range (Min/Max)', type: 'line', color: '#6b7280' }
+                    ]
+                } as any)}
             />
             
             <Bar dataKey="q1" stackId="a" fill="transparent" />
