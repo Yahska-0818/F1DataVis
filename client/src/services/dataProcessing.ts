@@ -2,7 +2,6 @@ import { parseLapTime } from '../utils';
 
 export const calculateBoxPlotData = (data: any[]) => {
     const driverLaps: { [key: string]: number[] } = {};
-    
     data.forEach(d => {
         const time = parseLapTime(d.LapTime);
         if (time > 0) {
@@ -16,17 +15,25 @@ export const calculateBoxPlotData = (data: any[]) => {
         const q1 = times[Math.floor(times.length * 0.25)];
         const median = times[Math.floor(times.length * 0.5)];
         const q3 = times[Math.floor(times.length * 0.75)];
-        const min = times[0];
-        const max = times[times.length - 1];
+        const iqr = q3 - q1;
+        const lowerFence = q1 - (1 * iqr);
+        const upperFence = q3 + (1 * iqr);
+        
+        const cleanTimes = times.filter(t => t >= lowerFence && t <= upperFence);
+        const min = cleanTimes.length > 0 ? cleanTimes[0] : times[0];
+        const max = cleanTimes.length > 0 ? cleanTimes[cleanTimes.length - 1] : times[times.length - 1];
 
         return {
             name: driver,
-            min, q1, median, q3, max,
+            min, 
+            q1, 
+            median, 
+            q3, 
+            max,
             whiskerRange: [median - min, max - median],
             sortValue: median 
         };
     });
-
     return boxData.sort((a, b) => a.sortValue - b.sortValue);
 };
 
