@@ -2,6 +2,7 @@ import fastf1
 import os
 import pandas as pd
 import numpy as np
+import gc
 
 cache_dir = 'cache_dir'
 if not os.path.exists(cache_dir):
@@ -27,7 +28,7 @@ def get_session_drivers(year, gp, session_type):
 def get_session_data(year, gp, session_type, selected_drivers=None, mode='summary'):
     try:
         session = _get_session_object(year, gp, session_type)
-        session.load()
+        session.load(telemetry=False, weather=False, messages=False)
     except Exception as e:
         raise e
 
@@ -65,30 +66,33 @@ def get_session_data(year, gp, session_type, selected_drivers=None, mode='summar
             clean_lap['Sector2Time'] = str(lap.get('Sector2Time', '00:00:00')).split('days ')[-1] if not pd.isnull(lap.get('Sector2Time')) else "00:00:00"
             clean_lap['Sector3Time'] = str(lap.get('Sector3Time', '00:00:00')).split('days ')[-1] if not pd.isnull(lap.get('Sector3Time')) else "00:00:00"
         cleaned_result.append(clean_lap)
+    
+    del session
+    gc.collect()
         
     return cleaned_result
 
 def get_multi_lap_telemetry(year, gp, session_type, lap_requests):
     try:
         session = _get_session_object(year, gp, session_type)
-        session.load()
+        session.load(weather=False, messages=False)
     except Exception as e:
         raise e
 
     reference_lap = None
     max_dist = 0
     loaded_laps = []
-
+    
     fastest_lap_time = float('inf')
     fastest_lap_obj = None
 
     for req in lap_requests:
         driver = req['driver']
-        lap_n = req['lapNumber']
+        lap_n = int(req['lapNumber'])
         try:
             d_laps = session.laps.pick_driver(driver)
-            specific_lap = d_laps[d_laps['LapNumber'] == int(lap_n)].iloc[0]
-
+            specific_lap = d_laps[d_laps['LapNumber'] == lap_n].iloc[0]
+            
             lap_time_seconds = specific_lap['LapTime'].total_seconds()
             if lap_time_seconds < fastest_lap_time:
                 fastest_lap_time = lap_time_seconds
@@ -113,11 +117,14 @@ def get_multi_lap_telemetry(year, gp, session_type, lap_requests):
             continue
 
     if reference_lap is None:
+        del session
+        gc.collect()
         return {"error": "No valid laps found"}
 
     common_dist = np.arange(0, max_dist, 10) 
     merged_data = pd.DataFrame({'Distance': common_dist})
 
+    ref_time_interp = None
     if fastest_lap_obj is not None:
         fastest_tel = fastest_lap_obj.get_telemetry().add_distance()
         ref_time_interp = np.interp(common_dist, fastest_tel['Distance'], fastest_tel['Time'].dt.total_seconds())
@@ -125,15 +132,18 @@ def get_multi_lap_telemetry(year, gp, session_type, lap_requests):
     for item in loaded_laps:
         tel = item['telemetry']
         key = item['id']
+        
         merged_data[f'Speed_{key}'] = np.interp(common_dist, tel['Distance'], tel['Speed'])
         merged_data[f'Throttle_{key}'] = np.interp(common_dist, tel['Distance'], tel['Throttle'])
         merged_data[f'Brake_{key}'] = np.interp(common_dist, tel['Distance'], tel['Brake'])
         merged_data[f'RPM_{key}'] = np.interp(common_dist, tel['Distance'], tel['RPM'])
         merged_data[f'nGear_{key}'] = np.interp(common_dist, tel['Distance'], tel['nGear'])
         merged_data[f'DRS_{key}'] = np.interp(common_dist, tel['Distance'], tel['DRS'])
-        if fastest_lap_obj is not None:
+
+        if ref_time_interp is not None:
             lap_time_interp = np.interp(common_dist, tel['Distance'], tel['Time'].dt.total_seconds())
             merged_data[f'Delta_{key}'] = lap_time_interp - ref_time_interp
+
     dominance_map = []
     ref_x = np.interp(common_dist, reference_lap['Distance'], reference_lap['X'])
     ref_y = np.interp(common_dist, reference_lap['Distance'], reference_lap['Y'])
@@ -153,6 +163,7 @@ def get_multi_lap_telemetry(year, gp, session_type, lap_requests):
             'Y': ref_y[i],
             'FastestDriver': fastest_id
         })
+
     lap_summaries = [{
         'driver': l['driver'], 
         'lap': l['lap'], 
@@ -161,6 +172,9 @@ def get_multi_lap_telemetry(year, gp, session_type, lap_requests):
     } for l in loaded_laps]
 
     chart_data = merged_data.replace({np.nan: None}).to_dict(orient='records')
+    
+    del session
+    gc.collect()
     
     return {
         "telemetry": chart_data,
@@ -185,6 +199,7 @@ def get_year_schedule(year: int):
             "RoundNumber": int(row['RoundNumber']),
             "EventName": str(row['EventName']),
             "Location": str(row['Location']),
+            "EventDate": str(row['EventDate']),
             "Sessions": sessions 
         })
     return events

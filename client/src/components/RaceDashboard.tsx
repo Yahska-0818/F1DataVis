@@ -44,11 +44,23 @@ export const RaceDashboard = () => {
 
     useEffect(() => {
         if (schedule.length > 0) {
-            setSelectedEventRound(schedule[0].RoundNumber);
-            const defaultSession = schedule[0].Sessions.find(s => s.value === 'Q' || s.value === 'R') || schedule[0].Sessions[0];
+            const now = new Date();
+            const pastEvents = schedule.filter(e => new Date(e.EventDate) < now);
+            const targetEvent = pastEvents.length > 0 
+                ? pastEvents[pastEvents.length - 1] 
+                : schedule[0];
+
+            setSelectedEventRound(targetEvent.RoundNumber);
+            const defaultSession = targetEvent.Sessions.find(s => s.value === 'R') 
+                                || targetEvent.Sessions.find(s => s.value === 'Q') 
+                                || targetEvent.Sessions[0];
+            
             setSelectedSession(defaultSession.value);
         }
-    }, [schedule]);
+        setAvailableDrivers([]);
+        setSelectedDrivers([]);
+        setComparisonLaps([]);
+    }, [schedule, selectedYear]);
 
     const currentEvent = useMemo(() => 
         schedule.find(e => e.RoundNumber === selectedEventRound), 
