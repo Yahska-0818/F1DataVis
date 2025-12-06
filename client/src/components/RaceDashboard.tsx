@@ -11,6 +11,7 @@ import { TelemetryOverlay } from './charts/TelemetryOverlay';
 import { fetchDrivers } from '../services/api';
 
 const YEARS = [2025, 2024, 2023, 2022, 2021, 2020];
+
 const getRandomColor = () => {
     const hslToHex = (h: number, s: number, l: number) => {
         l /= 100;
@@ -31,6 +32,7 @@ export const RaceDashboard = () => {
     const [selectedSession, setSelectedSession] = useState('Q');
     
     const [viewMode, setViewMode] = useState<'distribution' | 'progression'>('distribution');
+    const [sortBy, setSortBy] = useState<'median' | 'min'>('median');
     const [showOutliers, setShowOutliers] = useState(false);
     
     const [availableDrivers, setAvailableDrivers] = useState<string[]>([]);
@@ -44,17 +46,8 @@ export const RaceDashboard = () => {
 
     useEffect(() => {
         if (schedule.length > 0) {
-            const now = new Date();
-            const pastEvents = schedule.filter(e => new Date(e.EventDate) < now);
-            const targetEvent = pastEvents.length > 0 
-                ? pastEvents[pastEvents.length - 1] 
-                : schedule[0];
-
-            setSelectedEventRound(targetEvent.RoundNumber);
-            const defaultSession = targetEvent.Sessions.find(s => s.value === 'R') 
-                                || targetEvent.Sessions.find(s => s.value === 'Q') 
-                                || targetEvent.Sessions[0];
-            
+            setSelectedEventRound(schedule[0].RoundNumber);
+            const defaultSession = schedule[0].Sessions.find(s => s.value === 'Q' || s.value === 'R') || schedule[0].Sessions[0];
             setSelectedSession(defaultSession.value);
         }
         setAvailableDrivers([]);
@@ -68,8 +61,10 @@ export const RaceDashboard = () => {
 
     useEffect(() => {
         setViewMode('distribution');
+        setSortBy('median');
         setComparisonLaps([]);
-    }, [selectedSession]);
+        setSelectedDrivers([]); 
+    }, [selectedSession, selectedEventRound]);
 
     useEffect(() => {
         if (!currentEvent) return;
@@ -79,7 +74,7 @@ export const RaceDashboard = () => {
             try {
                 const drivers = await fetchDrivers(selectedYear, currentEvent.EventName, selectedSession);
                 setAvailableDrivers(drivers);
-                setSelectedDrivers(drivers.slice(0, 5));
+                setSelectedDrivers([]); 
             } catch (err) {
                 console.error(err);
             } finally {
@@ -89,12 +84,26 @@ export const RaceDashboard = () => {
         loadDrivers();
     }, [selectedYear, currentEvent, selectedSession]);
 
+    const sortedData = useMemo(() => {
+        if (!data || data.length === 0) return [];
+        
+        const isQuali = selectedSession === 'Q' || selectedSession === 'SS';
+        if (isQuali || viewMode === 'progression') return data;
+
+        return [...data].sort((a, b) => {
+            const valA = a[sortBy];
+            const valB = b[sortBy];
+            return (valA || 0) - (valB || 0);
+        });
+    }, [data, sortBy, selectedSession, viewMode]);
+
     const handleAnalyze = () => {
         if (currentEvent) {
             loadData(selectedYear, currentEvent.EventName, selectedSession, viewMode, selectedDrivers);
             setComparisonLaps([]);
         }
     };
+
     const handlePointClick = (driver: string, lap: number) => {
         setComparisonLaps(prev => {
             if (prev.some(p => p.driver === driver && p.lapNumber === lap)) return prev;
@@ -129,23 +138,36 @@ export const RaceDashboard = () => {
                         options={currentEvent?.Sessions.map(s => ({ label: s.name, value: s.value })) || []}
                         disabled={!currentEvent}
                     />
-                    <div className="bg-neutral-800 p-1 rounded-2xl flex h-[50px] border border-neutral-700">
-                        <button 
-                            onClick={() => setViewMode('distribution')}
-                            className={`flex-1 rounded-xl text-xs font-bold transition-all ${viewMode === 'distribution' ? 'bg-neutral-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
-                        >
-                            Distribution
-                        </button>
-                        <button 
-                            onClick={() => setViewMode('progression')}
-                            className={`flex-1 rounded-xl text-xs font-bold transition-all ${viewMode === 'progression' ? 'bg-neutral-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
-                        >
-                            Progression
-                        </button>
-                    </div>
+                    
+                    {!isQuali && (
+                        <div className="bg-neutral-800 p-1 rounded-2xl flex h-[50px] border border-neutral-700">
+                            <button 
+                                onClick={() => setViewMode('distribution')}
+                                className={`flex-1 rounded-xl text-xs font-bold transition-all ${viewMode === 'distribution' ? 'bg-neutral-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
+                            >
+                                Distribution
+                            </button>
+                            <button 
+                                onClick={() => setViewMode('progression')}
+                                className={`flex-1 rounded-xl text-xs font-bold transition-all ${viewMode === 'progression' ? 'bg-neutral-600 text-white shadow' : 'text-neutral-400 hover:text-white'}`}
+                            >
+                                Progression
+                            </button>
+                        </div>
+                    )}
                 </div>
 
-                {viewMode === 'progression' && (
+                {!isQuali && viewMode === 'distribution' && (
+                    <div className="flex justify-end pt-4 border-t border-white/5 animate-fade-in-down">
+                        <ToggleControl 
+                            label='Sort by Fastest' 
+                            checked={sortBy === 'min'} 
+                            onChange={(val) => setSortBy(val ? 'min' : 'median')} 
+                        />
+                    </div>
+                )}
+
+                {viewMode === 'progression' && !isQuali && (
                     <div className="flex flex-col gap-4 animate-fade-in-down border-t border-white/5 pt-6">
                         <div className="w-full">
                             {driversLoading ? (
@@ -182,13 +204,13 @@ export const RaceDashboard = () => {
 
             <div className="relative bg-neutral-900 border border-neutral-800 rounded-3xl shadow-2xl overflow-hidden" style={{ height: '750px' }}>
                 <div className="absolute top-0 left-0 right-0 p-6 z-10 pointer-events-none flex justify-between">
-                     <div>
+                    <div>
                         <h2 className="text-white text-3xl font-bold">{currentEvent?.EventName}</h2>
                         <p className="text-red-500 font-medium">
                             {isQuali ? 'Qualifying Pace' : viewMode === 'distribution' ? 'Race Pace Distribution' : 'Lap Time Progression'}
                         </p>
-                        {viewMode === 'progression' && <p className="text-neutral-500 text-xs mt-1">Click points to compare laps</p>}
-                     </div>
+                        {viewMode === 'progression' && !isQuali && <p className="text-neutral-500 text-xs mt-1">Click points to compare laps</p>}
+                    </div>
                 </div>
 
                 {error && <div className="absolute inset-0 flex items-center justify-center bg-neutral-900/90 z-20 text-red-400 font-medium">{error}</div>}
@@ -196,16 +218,16 @@ export const RaceDashboard = () => {
 
                 <div className="w-full h-full pt-24 pb-4 px-4 md:px-8">
                     {!loading && data.length > 0 && (
-                        viewMode === 'progression' 
-                            ? <LapProgressionChart 
+                        isQuali 
+                        ? <QualiChart data={sortedData} /> 
+                        : viewMode === 'distribution' 
+                            ? <RacePaceChart data={sortedData} domain={domain} />
+                            : <LapProgressionChart 
                                 data={data} 
                                 selectedDrivers={selectedDrivers} 
                                 showOutliers={showOutliers}
                                 onPointClick={handlePointClick}
                             />
-                            : isQuali 
-                                ? <QualiChart data={data} /> 
-                                : <RacePaceChart data={data} domain={domain} />
                     )}
                 </div>
             </div>
