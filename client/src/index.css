@@ -1,1 +1,52 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --color-f1-red: #e10600;
+  --animate-fade-in: fade-in 0.4s ease-out forwards;
+  --animate-fade-in-down: fade-in-down 0.3s ease-out forwards;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in-down {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #111320;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a2d3d; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3d4d; }
+
+.f1-input {
+  background: #1c1e2d;
+  border: 1px solid #2a2d3d;
+  border-left: 3px solid #e10600;
+  color: white;
+  transition: border-color 0.2s;
+}
+.f1-input:hover { border-color: #3a3d4d; border-left-color: #e10600; }
+.f1-input:focus { border-color: #e10600; outline: none; }
+
+.f1-surface {
+  background: #1c1e2d;
+  border: 1px solid #2a2d3d;
+}
+
+.recharts-tooltip-wrapper { outline: none !important; }

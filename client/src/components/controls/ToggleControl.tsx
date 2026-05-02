@@ -7,18 +7,18 @@ interface Props {
 }
 
 export const ToggleControl: React.FC<Props> = ({ label, checked, onChange }) => (
-    <div 
-        className="flex items-center justify-between space-x-4 bg-neutral-800 p-2 px-4 rounded-xl border border-neutral-700 h-[50px] cursor-pointer hover:border-neutral-600 transition-colors"
+    <div
+        className="flex items-center justify-between gap-3 cursor-pointer group py-1"
         onClick={() => onChange(!checked)}
     >
-        <label className="text-neutral-400 text-xs font-bold uppercase tracking-wider cursor-pointer select-none">
+        <label className="text-neutral-400 text-[11px] font-bold uppercase tracking-wider cursor-pointer select-none group-hover:text-neutral-300 transition-colors">
             {label}
         </label>
-        <div 
-            className={`relative w-11 h-6 flex items-center rounded-full p-1 transition-colors duration-300 flex-shrink-0 ${checked ? 'bg-red-600' : 'bg-neutral-600'}`}
+        <div
+            className={`relative w-9 h-5 flex items-center rounded-full p-0.5 transition-colors duration-200 flex-shrink-0 ${checked ? 'bg-red-600' : 'bg-[#2a2d3d]'}`}
         >
-            <div 
-                className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 ${checked ? 'translate-x-5' : 'translate-x-0'}`} 
+            <div
+                className={`bg-white w-4 h-4 rounded-full shadow transform transition-transform duration-200 ${checked ? 'translate-x-4' : 'translate-x-0'}`}
             />
         </div>
     </div>

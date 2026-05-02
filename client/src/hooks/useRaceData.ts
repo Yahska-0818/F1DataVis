@@ -26,6 +26,10 @@ export const useRaceData = () => {
             
             const rawData = await fetchRaceData(year, eventName, session, mode, driversToSend);
             
+            if (!rawData) {
+                throw new Error("No data returned from backend");
+            }
+
             const isQuali = session === 'Q' || session === 'SS';
 
             if (viewMode === 'progression') {

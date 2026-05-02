@@ -24,7 +24,46 @@ def get_session_drivers(year, gp, session_type):
         with _session_lock:
             session = _get_session_object(year, gp, session_type)
             session.load(laps=False, telemetry=False, weather=False, messages=False)
-            drivers = sorted(session.results['Abbreviation'].dropna().unique().tolist())
+            results = session.results
+            drivers = []
+            team_driver_count = {}
+
+            for _, row in results.iterrows():
+                abbr = row.get('Abbreviation')
+                if pd.isna(abbr): continue
+
+                raw_color = str(row.get('TeamColor', 'AAAAAA')).strip('#').strip()
+                if len(raw_color) != 6:
+                    raw_color = 'AAAAAA'
+
+                team_name = str(row.get('TeamName', 'Unknown'))
+
+                if team_name not in team_driver_count:
+                    team_driver_count[team_name] = 0
+                team_driver_count[team_name] += 1
+
+                try:
+                    r = int(raw_color[0:2], 16)
+                    g = int(raw_color[2:4], 16)
+                    b = int(raw_color[4:6], 16)
+                except ValueError:
+                    r, g, b = 170, 170, 170
+
+                if team_driver_count[team_name] > 1:
+                    factor = 0.35
+                    r = int(r + (255 - r) * factor)
+                    g = int(g + (255 - g) * factor)
+                    b = int(b + (255 - b) * factor)
+
+                color = f"#{r:02x}{g:02x}{b:02x}"
+
+                drivers.append({
+                    'code': str(abbr),
+                    'color': color,
+                    'team': team_name,
+                })
+
+            drivers.sort(key=lambda d: d['code'])
         return drivers
     except Exception as e:
         print(f"Error fetching drivers: {e}")
