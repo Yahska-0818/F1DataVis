@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { fetchRaceData } from '../services/api';
 import { calculateBoxPlotData, processQualiData } from '../services/dataProcessing';
 
@@ -7,6 +7,12 @@ export const useRaceData = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [domain, setDomain] = useState<[number, number] | ['auto', 'auto']>(['auto', 'auto']);
+
+    const clearData = useCallback(() => {
+        setData([]);
+        setError(null);
+        setDomain(['auto', 'auto']);
+    }, []);
 
     const loadData = async (year: number, eventName: string, session: string, viewMode: string, selectedDrivers: string[]) => {
         setLoading(true);
@@ -50,5 +56,5 @@ export const useRaceData = () => {
         }
     };
 
-    return { data, loading, error, domain, loadData };
+    return { data, loading, error, domain, loadData, clearData };
 };

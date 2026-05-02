@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, ScatterChart, Scatter, Cell, CartesianGrid, ReferenceLine } from 'recharts';
 import { formatTime } from '../../utils';
@@ -53,23 +53,34 @@ const CommonChart = ({ title, metric, domain, height = 200, syncId = "telemetry"
 export const TelemetryOverlay: React.FC<Props> = ({ year, gp, session, laps, onClose }) => {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(false);
+    const fetchId = useRef(0);
+
+    const lapsKey = useMemo(() => 
+        laps.map(l => `${l.driver}_${l.lapNumber}`).sort().join('|'),
+    [laps]);
 
     useEffect(() => {
+        const currentFetchId = ++fetchId.current;
+
         const fetchData = async () => {
             setLoading(true);
             try {
                 const result = await axios.post(`${API_BASE_URL}/api/telemetry/compare`, {
                     year, gp, session, laps: laps.map(l => ({ driver: l.driver, lapNumber: l.lapNumber }))
                 });
+                if (currentFetchId !== fetchId.current) return;
                 setData(result.data.data);
             } catch (e) {
+                if (currentFetchId !== fetchId.current) return;
                 console.error(e);
             } finally {
-                setLoading(false);
+                if (currentFetchId === fetchId.current) {
+                    setLoading(false);
+                }
             }
         };
         fetchData();
-    }, [year, gp, session, laps]);
+    }, [year, gp, session, lapsKey]);
 
     if (loading) return <div className="p-10 text-white text-center animate-pulse">Loading detailed telemetry...</div>;
     if (!data) return null;

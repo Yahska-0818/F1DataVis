@@ -3,12 +3,15 @@ import os
 import pandas as pd
 import numpy as np
 import gc
+import threading
 
 cache_dir = 'cache_dir'
 if not os.path.exists(cache_dir):
     os.makedirs(cache_dir)
 
-fastf1.Cache.enable_cache(cache_dir) 
+fastf1.Cache.enable_cache(cache_dir)
+
+_session_lock = threading.Lock()
 
 def _get_session_object(year, gp, session_type):
     if session_type == 'SS':
@@ -18,121 +21,124 @@ def _get_session_object(year, gp, session_type):
 
 def get_session_drivers(year, gp, session_type):
     try:
-        session = _get_session_object(year, gp, session_type)
-        session.load(laps=False, telemetry=False, weather=False, messages=False)
-        return sorted(session.results['Abbreviation'].unique().tolist())
+        with _session_lock:
+            session = _get_session_object(year, gp, session_type)
+            session.load(laps=False, telemetry=False, weather=False, messages=False)
+            drivers = sorted(session.results['Abbreviation'].dropna().unique().tolist())
+        return drivers
     except Exception as e:
         print(f"Error fetching drivers: {e}")
         return []
 
 def get_session_data(year, gp, session_type, selected_drivers=None, mode='summary'):
-    try:
-        session = _get_session_object(year, gp, session_type)
-        session.load(telemetry=False, weather=False, messages=False)
-    except Exception as e:
-        raise e
+    with _session_lock:
+        try:
+            session = _get_session_object(year, gp, session_type)
+            session.load(telemetry=False, weather=False, messages=False)
+        except Exception as e:
+            raise e
 
-    is_race_style = session_type in ['R', 'S', 'FP1', 'FP2', 'FP3']
-    
-    if is_race_style or mode == 'all':
-        laps = session.laps
-        if selected_drivers and len(selected_drivers) > 0:
-            laps = laps.pick_drivers(selected_drivers)
-        
-        accurate_laps = laps.pick_accurate().index
-        result = laps[['Driver', 'LapTime', 'LapNumber']].to_dict(orient='records')
-        
-        for i, lap in enumerate(result):
-            lap['IsAccurate'] = (laps.index[i] in accurate_laps)
-    else:
-        laps = session.laps.pick_quicklaps()
-        if selected_drivers and len(selected_drivers) > 0:
-            laps = laps.pick_drivers(selected_drivers)
-        result = laps[['Driver', 'LapTime', 'Sector1Time', 'Sector2Time', 'Sector3Time']].to_dict(orient='records')
-    
-    cleaned_result = []
-    for lap in result:
-        t = lap['LapTime']
-        if pd.isnull(t): continue
-        clean_lap = {
-            'Driver': lap['Driver'],
-            'LapTime': str(t).split('days ')[-1]
-        }
+        is_race_style = session_type in ['R', 'S', 'FP1', 'FP2', 'FP3']
+
         if is_race_style or mode == 'all':
-            clean_lap['LapNumber'] = int(lap['LapNumber'])
-            clean_lap['IsAccurate'] = bool(lap.get('IsAccurate', False))
-        if not is_race_style and mode == 'summary':
-            clean_lap['Sector1Time'] = str(lap.get('Sector1Time', '00:00:00')).split('days ')[-1] if not pd.isnull(lap.get('Sector1Time')) else "00:00:00"
-            clean_lap['Sector2Time'] = str(lap.get('Sector2Time', '00:00:00')).split('days ')[-1] if not pd.isnull(lap.get('Sector2Time')) else "00:00:00"
-            clean_lap['Sector3Time'] = str(lap.get('Sector3Time', '00:00:00')).split('days ')[-1] if not pd.isnull(lap.get('Sector3Time')) else "00:00:00"
-        cleaned_result.append(clean_lap)
-    
+            laps = session.laps
+            if selected_drivers and len(selected_drivers) > 0:
+                laps = laps.pick_drivers(selected_drivers)
+
+            accurate_laps = set(laps.pick_accurate().index.tolist())
+            result = []
+            for idx, row in laps.iterrows():
+                t = row['LapTime']
+                if pd.isnull(t): continue
+                result.append({
+                    'Driver': row['Driver'],
+                    'LapTime': str(t).split('days ')[-1],
+                    'LapNumber': int(row['LapNumber']),
+                    'IsAccurate': idx in accurate_laps,
+                })
+        else:
+            laps = session.laps.pick_quicklaps()
+            if selected_drivers and len(selected_drivers) > 0:
+                laps = laps.pick_drivers(selected_drivers)
+
+            result = []
+            for _, row in laps.iterrows():
+                t = row['LapTime']
+                if pd.isnull(t): continue
+                result.append({
+                    'Driver': row['Driver'],
+                    'LapTime': str(t).split('days ')[-1],
+                    'Sector1Time': str(row['Sector1Time']).split('days ')[-1] if not pd.isnull(row.get('Sector1Time')) else "00:00:00",
+                    'Sector2Time': str(row['Sector2Time']).split('days ')[-1] if not pd.isnull(row.get('Sector2Time')) else "00:00:00",
+                    'Sector3Time': str(row['Sector3Time']).split('days ')[-1] if not pd.isnull(row.get('Sector3Time')) else "00:00:00",
+                })
+
     del session
     gc.collect()
-        
-    return cleaned_result
+
+    return result
 
 def get_multi_lap_telemetry(year, gp, session_type, lap_requests):
-    try:
-        session = _get_session_object(year, gp, session_type)
-        session.load(weather=False, messages=False)
-    except Exception as e:
-        raise e
-
-    reference_lap = None
-    max_dist = 0
-    loaded_laps = []
-    
-    fastest_lap_time = float('inf')
-    fastest_lap_obj = None
-
-    for req in lap_requests:
-        driver = req['driver']
-        lap_n = int(req['lapNumber'])
+    with _session_lock:
         try:
-            d_laps = session.laps.pick_driver(driver)
-            specific_lap = d_laps[d_laps['LapNumber'] == lap_n].iloc[0]
-            
-            lap_time_seconds = specific_lap['LapTime'].total_seconds()
-            if lap_time_seconds < fastest_lap_time:
-                fastest_lap_time = lap_time_seconds
-                fastest_lap_obj = specific_lap
-
-            tel = specific_lap.get_telemetry().add_distance()
-            max_d = tel['Distance'].max()
-            
-            if max_d > max_dist:
-                max_dist = max_d
-                reference_lap = tel
-            
-            loaded_laps.append({
-                'id': f"{driver}_{lap_n}",
-                'driver': driver,
-                'lap': lap_n,
-                'telemetry': tel,
-                'time': lap_time_seconds
-            })
+            session = _get_session_object(year, gp, session_type)
+            session.load(weather=False, messages=False)
         except Exception as e:
-            print(f"Error loading {driver} {lap_n}: {e}")
-            continue
+            raise e
+
+        reference_lap = None
+        max_dist = 0
+        loaded_laps = []
+
+        fastest_lap_time = float('inf')
+        fastest_lap_obj = None
+
+        for req in lap_requests:
+            driver = req['driver']
+            lap_n = int(req['lapNumber'])
+            try:
+                d_laps = session.laps.pick_driver(driver)
+                specific_lap = d_laps[d_laps['LapNumber'] == lap_n].iloc[0]
+
+                lap_time_seconds = specific_lap['LapTime'].total_seconds()
+                if lap_time_seconds < fastest_lap_time:
+                    fastest_lap_time = lap_time_seconds
+                    fastest_lap_obj = specific_lap
+
+                tel = specific_lap.get_telemetry().add_distance()
+                max_d = tel['Distance'].max()
+
+                if max_d > max_dist:
+                    max_dist = max_d
+                    reference_lap = tel
+
+                loaded_laps.append({
+                    'id': f"{driver}_{lap_n}",
+                    'driver': driver,
+                    'lap': lap_n,
+                    'telemetry': tel,
+                    'time': lap_time_seconds
+                })
+            except Exception as e:
+                print(f"Error loading {driver} {lap_n}: {e}")
+                continue
 
     if reference_lap is None:
-        del session
         gc.collect()
         return {"error": "No valid laps found"}
 
-    common_dist = np.arange(0, max_dist, 10) 
+    common_dist = np.arange(0, max_dist, 10)
     merged_data = pd.DataFrame({'Distance': common_dist})
 
     ref_time_interp = None
     if fastest_lap_obj is not None:
-        fastest_tel = fastest_lap_obj.get_telemetry().add_distance()
+        fastest_tel = loaded_laps[[l for l in range(len(loaded_laps)) if loaded_laps[l]['time'] == fastest_lap_time][0]]['telemetry']
         ref_time_interp = np.interp(common_dist, fastest_tel['Distance'], fastest_tel['Time'].dt.total_seconds())
 
     for item in loaded_laps:
         tel = item['telemetry']
         key = item['id']
-        
+
         merged_data[f'Speed_{key}'] = np.interp(common_dist, tel['Distance'], tel['Speed'])
         merged_data[f'Throttle_{key}'] = np.interp(common_dist, tel['Distance'], tel['Throttle'])
         merged_data[f'Brake_{key}'] = np.interp(common_dist, tel['Distance'], tel['Brake'])
@@ -157,7 +163,7 @@ def get_multi_lap_telemetry(year, gp, session_type, lap_requests):
             if speed > best_speed:
                 best_speed = speed
                 fastest_id = item['driver']
-        
+
         dominance_map.append({
             'X': ref_x[i],
             'Y': ref_y[i],
@@ -165,17 +171,17 @@ def get_multi_lap_telemetry(year, gp, session_type, lap_requests):
         })
 
     lap_summaries = [{
-        'driver': l['driver'], 
-        'lap': l['lap'], 
+        'driver': l['driver'],
+        'lap': l['lap'],
         'time': l['time'],
         'diff': l['time'] - fastest_lap_time
     } for l in loaded_laps]
 
     chart_data = merged_data.replace({np.nan: None}).to_dict(orient='records')
-    
+
     del session
     gc.collect()
-    
+
     return {
         "telemetry": chart_data,
         "dominance": dominance_map,
@@ -200,7 +206,7 @@ def get_year_schedule(year: int):
             "EventName": str(row['EventName']),
             "Location": str(row['Location']),
             "EventDate": str(row['EventDate']),
-            "Sessions": sessions 
+            "Sessions": sessions
         })
     return events
 

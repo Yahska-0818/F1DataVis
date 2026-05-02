@@ -8,14 +8,14 @@ export const fetchSchedule = async (year: number) => {
 };
 
 export const fetchDrivers = async (year: number, eventName: string, session: string) => {
-    const res = await axios.get(`${API_BASE_URL}/api/drivers/${year}/${eventName}/${session}`);
+    const res = await axios.get(`${API_BASE_URL}/api/drivers/${year}/${encodeURIComponent(eventName)}/${encodeURIComponent(session)}`);
     return res.data.data;
 };
 
 export const fetchRaceData = async (year: number, eventName: string, session: string, mode: string, drivers: string[] = []) => {
-    let url = `${API_BASE_URL}/api/race/${year}/${eventName}/${session}?mode=${mode}`;
+    let url = `${API_BASE_URL}/api/race/${year}/${encodeURIComponent(eventName)}/${encodeURIComponent(session)}?mode=${mode}`;
     if (drivers.length > 0) {
-        const queryParams = drivers.map(d => `drivers=${d}`).join('&');
+        const queryParams = drivers.map(d => `drivers=${encodeURIComponent(d)}`).join('&');
         url += `&${queryParams}`;
     }
     const res = await axios.get(url);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRaceSchedule } from '../hooks/useRaceSchedule';
 import { useRaceData } from '../hooks/useRaceData';
 import { SelectControl } from './controls/SelectControl';
@@ -42,7 +42,9 @@ export const RaceDashboard = () => {
     const [comparisonLaps, setComparisonLaps] = useState<{ driver: string; lapNumber: number; color: string }[]>([]);
 
     const schedule = useRaceSchedule(selectedYear);
-    const { data, loading, error, domain, loadData } = useRaceData();
+    const { data, loading, error, domain, loadData, clearData } = useRaceData();
+
+    const driverFetchId = useRef(0);
 
     useEffect(() => {
         if (schedule.length > 0) {
@@ -53,7 +55,8 @@ export const RaceDashboard = () => {
         setAvailableDrivers([]);
         setSelectedDrivers([]);
         setComparisonLaps([]);
-    }, [schedule, selectedYear]);
+        clearData();
+    }, [schedule]);
 
     const currentEvent = useMemo(() => 
         schedule.find(e => e.RoundNumber === selectedEventRound), 
@@ -63,22 +66,30 @@ export const RaceDashboard = () => {
         setViewMode('distribution');
         setSortBy('median');
         setComparisonLaps([]);
-        setSelectedDrivers([]); 
+        setSelectedDrivers([]);
+        clearData();
     }, [selectedSession, selectedEventRound]);
 
     useEffect(() => {
         if (!currentEvent) return;
         
+        const fetchId = ++driverFetchId.current;
+
         const loadDrivers = async () => {
             setDriversLoading(true);
             try {
                 const drivers = await fetchDrivers(selectedYear, currentEvent.EventName, selectedSession);
+                if (fetchId !== driverFetchId.current) return;
                 setAvailableDrivers(drivers);
                 setSelectedDrivers([]); 
             } catch (err) {
+                if (fetchId !== driverFetchId.current) return;
                 console.error(err);
+                setAvailableDrivers([]);
             } finally {
-                setDriversLoading(false);
+                if (fetchId === driverFetchId.current) {
+                    setDriversLoading(false);
+                }
             }
         };
         loadDrivers();
